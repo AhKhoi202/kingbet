@@ -30,7 +30,7 @@ const KingBet = () => {
     // Thêm dữ liệu cho các sự kiện khác ở đây nếu muốn
   ];
 
-  const [data, setData] = useState("");
+  const [data, setData] = useState();
   const token = "96602715-cb62-4fe2-ae00-040a40b28995";
   const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
   const ws = new WebSocket(wsUrl);
@@ -43,8 +43,9 @@ const KingBet = () => {
 
   ws.onmessage = (event) => {
     // console.log("Message from server");
-    console.log(event.data);
-    setData(event.data?.payload);
+    // console.log(event.data);
+    const jsonData = JSON.parse(event.data);
+    setData(jsonData?.payload?.game);
   };
 
   ws.onerror = (error) => {
@@ -59,7 +60,27 @@ const KingBet = () => {
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
       <div className="">
         <div className="border-b-4">MBA</div>
-        <div>{data}</div>
+        <div>
+          tên đội 1:
+          {data?.results?.length > 0
+            ? data.results[0]?.name.value
+            : "Đang tải..."}
+        </div>
+        <div>
+          Tỉ lệ cược:
+          {data?.results?.length > 0 ? data.results[0]?.odds : "Đang tải..."}
+        </div>
+
+        <div>
+          tên đội 2:
+          {data?.results?.length > 1
+            ? data.results[1]?.name.value
+            : "Đang tải..."}
+        </div>
+        <div>
+          Tỉ lệ cược:
+          {data?.results?.length > 0 ? data.results[1]?.odds : "Đang tải..."}
+        </div>
         <div className="space-y-4">
           {eventsData.map((event) => (
             <div
