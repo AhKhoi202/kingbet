@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { CiLock } from "react-icons/ci";
 
-const KinhBet = () => {
+const Tennis = () => {
   const eventsData = [
     {
       id: 1,
@@ -29,10 +29,37 @@ const KinhBet = () => {
     },
     // Thêm dữ liệu cho các sự kiện khác ở đây nếu muốn
   ];
+
+  const [data, setData] = useState("");
+  const token = "96602715-cb62-4fe2-ae00-040a40b28995";
+  const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
+  const ws = new WebSocket(wsUrl);
+
+  ws.onopen = () => {
+    console.log("Connected");
+    // Nếu bạn muốn gửi thông điệp ngay sau khi kết nối
+    ws.send("something");
+  };
+
+  ws.onmessage = (event) => {
+    console.log("Message from server");
+    console.log(event.data);
+    setData(event.data?.payload);
+  };
+
+  ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
+  };
+
+  ws.onclose = () => {
+    console.log("WebSocket connection closed");
+  };
+  console.log(data);
   return (
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
       <div className="">
         <div className="border-b-4">MBA</div>
+        <div>{data}</div>
         <div className="space-y-4">
           {eventsData.map((event) => (
             <div
@@ -174,4 +201,4 @@ const KinhBet = () => {
   );
 };
 
-export default KinhBet;
+export default Tennis;
