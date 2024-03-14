@@ -1,35 +1,95 @@
 import React, { useState, useEffect } from "react";
 import { CiLock } from "react-icons/ci";
+import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { apiGet } from "../services";
 const Tennis = () => {
+  const [fixtureIds, setFixtureIds] = useState([]);
   const [basketballData, setBasketballData] = useState(null);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await apiGet();
+        if (response.data.Sports) {
+          const basketball = response.data.Sports.find(
+            (sport) => sport.SportType === "Basketball"
+          );
+          setBasketballData(basketball);
+          //lấy fixtureId
+          // Tạo một mảng mới để chứa tất cả fixtureIds
+          let allFixtureIds = [];
+          response.data.Sports.forEach((sport) => {
+            sport.Games.forEach((game) => {
+              // Thêm fixtureId của mỗi trận đấu vào mảng allFixtureIds
+              allFixtureIds.push(game.fixtureId);
+            });
+          });
+          // Cập nhật state với tất cả fixtureIds thu thập được
+          setFixtureIds(allFixtureIds);
+        }
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      }
+    };
+    // Gọi fetchData lần đầu tiên khi component được render
+    fetchData();
+    // Thiết lập interval để gọi fetchData mỗi 5 phút
+    const interval = setInterval(() => {
+      fetchData();
+    }, 300000); // 300000 milliseconds = 5 minutes
+    // Xóa interval khi component unmount để tránh leak memory
+    return () => clearInterval(interval);
+  }, []);
+  const [data, setData] = useState();
+  const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
+  // const ws = UseWebSocket(wsUrl);
+  const ws = new WebSocket(wsUrl);
+  // const ww = useRef(0);
+  useEffect(function () {
+    if (ws) {
+      ws.onopen = () => {
+        // console.log("Connected", ww.current);
+        ws.send("something");
+      };
+      ws.onmessage = (event) => {
+        // console.log(event.data);
+        const jsonData = JSON.parse(event.data);
+        setData(jsonData?.payload?.game);
+      };
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+      };
+      ws.onclose = () => {
+        console.log("WebSocket connection closed");
+      };
+    }
+  }, []);
 
- useEffect(() => {
-   const fetchData = async () => {
-     try {
-       const response = await apiGet();
-       if (response.data.Sports) {
-         const basketball = response.data.Sports.find(
-           (sport) => sport.SportType === "Basketball"
-         );
-         setBasketballData(basketball);
-       }
-     } catch (error) {
-       console.error("Failed to fetch data:", error);
-     }
-   };
+  useEffect(() => {
+    if (!data || !basketballData) return;
 
-   // Gọi fetchData lần đầu tiên khi component được render
-   fetchData();
+    // Tìm và cập nhật dữ liệu trận đấu dựa trên dữ liệu từ WebSocket
+    const updatedGames = basketballData.Games.map((game) => {
+      ["Spread", "Totals", "Money Line"].forEach((betType) => {
+        game.bettingBoard[betType]?.forEach((bet, index) => {
+          const liveUpdate = data.results.find(
+            (result) => result.id === bet.id
+          );
+          if (liveUpdate) {
+            // Cập nhật thông tin cược với dữ liệu mới
+            game.bettingBoard[betType][index] = {
+              ...bet,
+              odds: liveUpdate.odds,
+            };
+          }
+        });
+      });
+      return game; // Trả lại trận đấu đã được cập nhật
+    });
 
-   // Thiết lập interval để gọi fetchData mỗi 5 phút
-   const interval = setInterval(() => {
-     fetchData();
-   }, 500); // 300000 milliseconds = 5 minutes
+    setBasketballData({ ...basketballData, Games: updatedGames });
+  }, [data]); // Phụ thuộc vào dữ liệu WebSocket
 
-   // Xóa interval khi component unmount để tránh leak memory
-   return () => clearInterval(interval);
- }, []);
+  // console.log(data);
   console.log(basketballData);
   return (
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
@@ -38,147 +98,73 @@ const Tennis = () => {
         <div className="space-y-4">
           {basketballData && basketballData.Games.length > 0 ? (
             basketballData.Games.map((game, index) => (
-              <div
+              <Card
                 key={index}
                 className="p-4 border border-gray-200 rounded shadow"
               >
-                <div className="grid grid-cols-4 gap-4 mb-4 text-center">
+                <CardHeader className="grid grid-cols-4 gap-4 mb-4 text-center">
                   <div className="text-left">{game.game_name}</div>
                   <div>Spread</div>
                   <div>Total</div>
                   <div>Money</div>
-                </div>
-                <div className="grid grid-cols-4 gap-4">
-                  {/* logo vs name */}
-                  <div className="grid gap-4">
-                    <div className="flex items-center space-x-2">
-                      {/* <img
-                        src={event.team1.logo}
-                        alt={event.team1.name}
-                        className="w-8 h-8"
-                      /> */}
-                      <div>
-                        <div className="font-semibold">{game?.homeTeam}</div>
-                        <div className="text-sm text-gray-600">
-                          {/* {event.team1.record} */}
-                        </div>
-                      </div>
-                      <span className="text-gray-800 font-bold">
-                        {/* {event.team1.score} */}
-                      </span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      {/* <img
-                        src={event.team2.logo}
-                        alt={event.team2.name}
-                        className="w-8 h-8"
-                      /> */}
-                      <div>
-                        <div className="font-semibold">{game?.awayTeam}</div>
-                        <div className="text-sm text-gray-600">
-                          {/* {event.team2.record} */}
-                        </div>
-                      </div>
-                      <span className="text-gray-800 font-bold">
-                        {/* {event.team2.score} */}
-                      </span>
-                    </div>
+                </CardHeader>
+                <CardContent className="grid grid-cols-4 gap-4">
+                  <div className="col-span-1">
+                    {/* Example for home and away teams, adjust accordingly */}
+                    <div className="font-semibold">{game?.homeTeam}</div>
+                    <div className="font-semibold">{game?.awayTeam}</div>
                   </div>
-                  {/* spread */}
-                  <div className="font-medium grid gap-4">
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        !game.bettingBoard.Spread &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard.Spread ? (
-                        <>
-                          <p>{game.bettingBoard.Spread[0].name}</p>
-                          <p>{game.bettingBoard.Spread[0].value}</p>
-                        </>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        !game.bettingBoard.Spread &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard.Spread ? (
-                        <>
-                          <p>{game.bettingBoard.Spread[1].name}</p>
-                          <p>{game.bettingBoard.Spread[1].value}</p>
-                        </>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
-                  </div>
-                  {/* total */}
-                  <div className="font-medium grid gap-4">
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        game.bettingBoard.Totals &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard.Totals ? (
-                        <div className="flex flex-col">
-                          <p>{game.bettingBoard.Totals[0].name}</p>
-                          <p>{game.bettingBoard.Totals[0].value}</p>
+                  {/* Example for Spread */}
+                  <div className="col-span-1 grid gap-4">
+                    {game.bettingBoard.Spread &&
+                      game.bettingBoard.Spread.map((spread, spreadIndex) => (
+                        <div
+                          key={spreadIndex}
+                          className="border-2 rounded-lg text-center p-2"
+                          data-bet-id={spread.id}
+                        >
+                          {/* Placeholder for odds and name, will be filled/updated by WebSocket */}
+                          <p id={`spread-name-${spread.id}`}>{spread.name}</p>
+                          <p id={`spread-odds-${spread.id}`}>
+                             {spread.odds}
+                          </p>
                         </div>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        game.bettingBoard.Totals &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard.Totals ? (
-                        <div className="flex flex-col">
-                          <p>{game.bettingBoard.Totals[1].name}</p>
-                          <p>{game.bettingBoard.Totals[1].value}</p>
+                      ))}
+                  </div>
+                  {/* Example for Totals */}
+                  <div className="col-span-1 grid gap-4">
+                    {game.bettingBoard.Totals &&
+                      game.bettingBoard.Totals.map((total, totalIndex) => (
+                        <div
+                          key={totalIndex}
+                          className="border-2 rounded-lg text-center p-2"
+                          data-bet-id={total.id}
+                        >
+                          <p id={`total-name-${total.id}`}>{total.name}</p>
+                          <p id={`total-odds-${total.id}`}>
+                             {total.odds}
+                          </p>
                         </div>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
+                      ))}
                   </div>
-                  {/* money */}
-                  <div className="font-medium grid gap-4">
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        !game.bettingBoard["Money Line"] &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard["Money Line"] ? (
-                        <p>{game.bettingBoard["Money Line"][0].value}</p>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
-                    <div
-                      className={`border-2 rounded-lg text-center ${
-                        !game.bettingBoard["Money Line"] &&
-                        "flex justify-center items-center"
-                      }`}
-                    >
-                      {game.bettingBoard["Money Line"] ? (
-                        <p>{game.bettingBoard["Money Line"][1].value}</p>
-                      ) : (
-                        <CiLock className="text-2xl" />
-                      )}
-                    </div>
+                  {/* Example for Money Line */}
+                  <div className="col-span-1 grid gap-4">
+                    {game.bettingBoard["Money Line"].map(
+                      (moneyLine, moneyLineIndex) => (
+                        <div
+                          key={moneyLineIndex}
+                          className="border-2 rounded-lg text-center p-2"
+                          data-bet-id={moneyLine.id}
+                        >
+                          <p id={`moneyline-odds-${moneyLine.id}`}>
+                             {moneyLine.odds}
+                          </p>
+                        </div>
+                      )
+                    )}
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))
           ) : (
             <p>No basketball games available.</p>
