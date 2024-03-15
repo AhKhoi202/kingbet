@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { CiLock } from "react-icons/ci";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
 import { apiGet } from "../services";
 const Tennis = () => {
-  const [fixtureIds, setFixtureIds] = useState([]);
   const [basketballData, setBasketballData] = useState(null);
   useEffect(() => {
     const fetchData = async () => {
@@ -14,17 +13,6 @@ const Tennis = () => {
             (sport) => sport.SportType === "Basketball"
           );
           setBasketballData(basketball);
-          //lấy fixtureId
-          // Tạo một mảng mới để chứa tất cả fixtureIds
-          let allFixtureIds = [];
-          response.data.Sports.forEach((sport) => {
-            sport.Games.forEach((game) => {
-              // Thêm fixtureId của mỗi trận đấu vào mảng allFixtureIds
-              allFixtureIds.push(game.fixtureId);
-            });
-          });
-          // Cập nhật state với tất cả fixtureIds thu thập được
-          setFixtureIds(allFixtureIds);
         }
       } catch (error) {
         console.error("Failed to fetch data:", error);
@@ -42,23 +30,24 @@ const Tennis = () => {
   const [data, setData] = useState();
   const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
   // const ws = UseWebSocket(wsUrl);
-  const ws = new WebSocket(wsUrl);
+  const ws = useRef(null);
+   ws.current = new WebSocket(wsUrl);
   // const ww = useRef(0);
   useEffect(function () {
     if (ws) {
-      ws.onopen = () => {
+      ws.current.onopen = () => {
         // console.log("Connected", ww.current);
-        ws.send("something");
+        ws.current.send("something");
       };
-      ws.onmessage = (event) => {
+      ws.current.onmessage = (event) => {
         // console.log(event.data);
         const jsonData = JSON.parse(event.data);
         setData(jsonData?.payload?.game);
       };
-      ws.onerror = (error) => {
+      ws.current.onerror = (error) => {
         console.error("WebSocket error:", error);
       };
-      ws.onclose = () => {
+      ws.current.onclose = () => {
         console.log("WebSocket connection closed");
       };
     }
@@ -79,6 +68,7 @@ const Tennis = () => {
             game.bettingBoard[betType][index] = {
               ...bet,
               odds: liveUpdate.odds,
+              resultName: liveUpdate.name.value,
             };
           }
         });
@@ -87,10 +77,10 @@ const Tennis = () => {
     });
 
     setBasketballData({ ...basketballData, Games: updatedGames });
-  }, [data]); // Phụ thuộc vào dữ liệu WebSocket
+  }, [data]);
 
   // console.log(data);
-  console.log(basketballData);
+  // console.log(basketballData);
   return (
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
       <div className="">
@@ -123,15 +113,16 @@ const Tennis = () => {
                           className="border-2 rounded-lg text-center p-2"
                           data-bet-id={spread.id}
                         >
-                          {/* Placeholder for odds and name, will be filled/updated by WebSocket */}
-                          <p id={`spread-name-${spread.id}`}>{spread.name}</p>
-                          <p id={`spread-odds-${spread.id}`}>
-                             {spread.odds}
+                          {/*spread*/}
+                          {/* <p>{spread.name}</p> */}
+                          <p id={`spread-odds-${spread.id}`}>{spread.odds}</p>
+                          <p id={`spread-resultName-${spread.id}`}>
+                            {spread.resultName}
                           </p>
                         </div>
                       ))}
                   </div>
-                  {/* Example for Totals */}
+                  {/* Totals */}
                   <div className="col-span-1 grid gap-4">
                     {game.bettingBoard.Totals &&
                       game.bettingBoard.Totals.map((total, totalIndex) => (
@@ -140,14 +131,15 @@ const Tennis = () => {
                           className="border-2 rounded-lg text-center p-2"
                           data-bet-id={total.id}
                         >
-                          <p id={`total-name-${total.id}`}>{total.name}</p>
-                          <p id={`total-odds-${total.id}`}>
-                             {total.odds}
+                          {/* <p id={`total-name-${total.id}`}>{total.name}</p> */}
+                          <p id={`total-resultName-${total.id}`}>
+                            {total.resultName}
                           </p>
+                          <p id={`total-odds-${total.id}`}>{total.odds}</p>
                         </div>
                       ))}
                   </div>
-                  {/* Example for Money Line */}
+                  {/*Money */}
                   <div className="col-span-1 grid gap-4">
                     {game.bettingBoard["Money Line"].map(
                       (moneyLine, moneyLineIndex) => (
@@ -157,7 +149,7 @@ const Tennis = () => {
                           data-bet-id={moneyLine.id}
                         >
                           <p id={`moneyline-odds-${moneyLine.id}`}>
-                             {moneyLine.odds}
+                            {moneyLine.odds}
                           </p>
                         </div>
                       )
