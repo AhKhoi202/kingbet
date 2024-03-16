@@ -23,7 +23,7 @@ const Tennis = () => {
     // Thiết lập interval để gọi fetchData mỗi 5 phút
     const interval = setInterval(() => {
       fetchData();
-    }, 300000); // 300000 milliseconds = 5 minutes
+    }, 1); // 300000 milliseconds = 5 minutes
     // Xóa interval khi component unmount để tránh leak memory
     return () => clearInterval(interval);
   }, []);
@@ -31,18 +31,40 @@ const Tennis = () => {
   const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
   // const ws = UseWebSocket(wsUrl);
   const ws = useRef(null);
-   ws.current = new WebSocket(wsUrl);
+  ws.current = new WebSocket(wsUrl);
   // const ww = useRef(0);
   useEffect(function () {
     if (ws) {
       ws.current.onopen = () => {
-        // console.log("Connected", ww.current);
         ws.current.send("something");
       };
       ws.current.onmessage = (event) => {
         // console.log(event.data);
         const jsonData = JSON.parse(event.data);
         setData(jsonData?.payload?.game);
+        if (!jsonData || !basketballData || basketballData.Games.length === 0)
+          return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
+        const updatedGames = basketballData.Games.map((game) => {
+          ["Spread", "Totals", "Money Line"].forEach((betType) => {
+            game.bettingBoard[betType]?.forEach((bet, index) => {
+              const liveUpdate = jsonData.results.find(
+                (result) => result.id === bet.id
+              );
+              if (liveUpdate) {
+                // Cập nhật thông tin cược với dữ liệu mới
+                game.bettingBoard[betType][index] = {
+                  ...bet,
+                  value: liveUpdate.odds,
+                  name: liveUpdate.name.value,
+                  // resultName: liveUpdate.name.value,
+                };
+              }
+            });
+          });
+          return game; // Trả lại trận đấu đã được cập nhật
+        });
+
+        setBasketballData({ ...basketballData, Games: updatedGames });
       };
       ws.current.onerror = (error) => {
         console.error("WebSocket error:", error);
@@ -53,40 +75,41 @@ const Tennis = () => {
     }
   }, []);
 
-  useEffect(() => {
-    if (!data || !basketballData) return;
+  // useEffect(() => {
+  //   if (!data || !basketballData || basketballData.Games.length === 0) return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
+  //   const updatedGames = basketballData.Games.map((game) => {
+  //     ["Spread", "Totals", "Money Line"].forEach((betType) => {
+  //       game.bettingBoard[betType]?.forEach((bet, index) => {
+  //         const liveUpdate = data.results.find(
+  //           (result) => result.id === bet.id
+  //         );
+  //         if (liveUpdate) {
+  //           // Cập nhật thông tin cược với dữ liệu mới
+  //           game.bettingBoard[betType][index] = {
+  //             ...bet,
+  //             value: liveUpdate.odds,
+  //             name: liveUpdate.name.value,
+  //             // resultName: liveUpdate.name.value,
+  //           };
+  //         }
+  //       });
+  //     });
+  //     return game; // Trả lại trận đấu đã được cập nhật
+  //   });
 
-    // Tìm và cập nhật dữ liệu trận đấu dựa trên dữ liệu từ WebSocket
-    const updatedGames = basketballData.Games.map((game) => {
-      ["Spread", "Totals", "Money Line"].forEach((betType) => {
-        game.bettingBoard[betType]?.forEach((bet, index) => {
-          const liveUpdate = data.results.find(
-            (result) => result.id === bet.id
-          );
-          if (liveUpdate) {
-            // Cập nhật thông tin cược với dữ liệu mới
-            game.bettingBoard[betType][index] = {
-              ...bet,
-              odds: liveUpdate.odds,
-              resultName: liveUpdate.name.value,
-            };
-          }
-        });
-      });
-      return game; // Trả lại trận đấu đã được cập nhật
-    });
+  //   setBasketballData({ ...basketballData, Games: updatedGames });
+  // }, [data]);
 
-    setBasketballData({ ...basketballData, Games: updatedGames });
-  }, [data]);
-
-  // console.log(data);
+  console.log(data);
   // console.log(basketballData);
   return (
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
       <div className="">
         <div className="border-b-4">MBA</div>
         <div className="space-y-4">
-          {basketballData && basketballData.Games.length > 0 ? (
+          {basketballData &&
+          basketballData.Games &&
+          basketballData.Games.length > 0 ? (
             basketballData.Games.map((game, index) => (
               <Card
                 key={index}
@@ -115,10 +138,8 @@ const Tennis = () => {
                         >
                           {/*spread*/}
                           {/* <p>{spread.name}</p> */}
-                          <p id={`spread-odds-${spread.id}`}>{spread.odds}</p>
-                          <p id={`spread-resultName-${spread.id}`}>
-                            {spread.resultName}
-                          </p>
+                          <p id={`spread-name-${spread.id}`}>{spread.name}</p>
+                          <p id={`spread-odds-${spread.id}`}>{spread.value}</p>
                         </div>
                       ))}
                   </div>
@@ -132,16 +153,14 @@ const Tennis = () => {
                           data-bet-id={total.id}
                         >
                           {/* <p id={`total-name-${total.id}`}>{total.name}</p> */}
-                          <p id={`total-resultName-${total.id}`}>
-                            {total.resultName}
-                          </p>
-                          <p id={`total-odds-${total.id}`}>{total.odds}</p>
+                          <p id={`total-name-${total.id}`}>{total.name}</p>
+                          <p id={`total-odds-${total.id}`}>{total.value}</p>
                         </div>
                       ))}
                   </div>
                   {/*Money */}
                   <div className="col-span-1 grid gap-4">
-                    {game.bettingBoard["Money Line"].map(
+                    {game?.bettingBoard["Money Line"]?.map(
                       (moneyLine, moneyLineIndex) => (
                         <div
                           key={moneyLineIndex}
@@ -149,7 +168,7 @@ const Tennis = () => {
                           data-bet-id={moneyLine.id}
                         >
                           <p id={`moneyline-odds-${moneyLine.id}`}>
-                            {moneyLine.odds}
+                            {moneyLine.value}
                           </p>
                         </div>
                       )
