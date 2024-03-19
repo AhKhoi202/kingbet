@@ -1,8 +1,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Home, KingBet, Tennis } from "./pages";
+import { Home, KingBet, NBA, TableTennis } from "./pages";
 import { path } from "./utils/constant";
-// import KingBet from "./pages/KingBet"; // Giả sử đây là một trang con bạn muốn hiển thị trong Home
 
 function App() {
   return (
@@ -10,7 +9,8 @@ function App() {
       <Routes>
         <Route path={path.HOME} element={<Home />}>
           <Route path="/*" element={<KingBet />} />
-          <Route path={path.TENNIS} element={<Tennis />} />
+          <Route path={path.NBA} element={<NBA />} />
+          <Route path={path.TABLETENNIS} element={<TableTennis />} />
         </Route>
       </Routes>
     </BrowserRouter>

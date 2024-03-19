@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from "react";
 import { CiLock } from "react-icons/ci";
 import { Card, CardContent, CardHeader } from "../components/ui/card";
-import { apiGet } from "../services";
-const Tennis = () => {
+import { apiNBA, apiGet } from "../services";
+const NBA = () => {
   const [basketballData, setBasketballData] = useState(null);
+  const [updatedData, setUpdatedData] = useState(null);
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await apiGet();
+        const response = await apiNBA();
+        // const response = await apiGet();
         if (response.data.Sports) {
           const basketball = response.data.Sports.find(
             (sport) => sport.SportType === "Basketball"
@@ -18,99 +20,80 @@ const Tennis = () => {
         console.error("Failed to fetch data:", error);
       }
     };
-    // Gọi fetchData lần đầu tiên khi component được render
     fetchData();
-    // Thiết lập interval để gọi fetchData mỗi 5 phút
-    const interval = setInterval(() => {
-      fetchData();
-    }, 1); // 300000 milliseconds = 5 minutes
+    // Thiết lập interval để gọi fetchData
+    const interval = setInterval(fetchData, 20000);
     // Xóa interval khi component unmount để tránh leak memory
     return () => clearInterval(interval);
   }, []);
+
+  //ws
   const [data, setData] = useState();
   const wsUrl = `ws://123.27.3.32:8765/kingsbet/live?token=96602715-cb62-4fe2-ae00-040a40b28995`;
-  // const ws = UseWebSocket(wsUrl);
   const ws = useRef(null);
-  ws.current = new WebSocket(wsUrl);
-  // const ww = useRef(0);
-  useEffect(function () {
-    if (ws) {
-      ws.current.onopen = () => {
-        ws.current.send("something");
-      };
-      ws.current.onmessage = (event) => {
-        // console.log(event.data);
-        const jsonData = JSON.parse(event.data);
-        setData(jsonData?.payload?.game);
-        if (!jsonData || !basketballData || basketballData.Games.length === 0)
-          return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
-        const updatedGames = basketballData.Games.map((game) => {
-          ["Spread", "Totals", "Money Line"].forEach((betType) => {
-            game.bettingBoard[betType]?.forEach((bet, index) => {
-              const liveUpdate = jsonData.results.find(
-                (result) => result.id === bet.id
-              );
-              if (liveUpdate) {
-                // Cập nhật thông tin cược với dữ liệu mới
-                game.bettingBoard[betType][index] = {
-                  ...bet,
-                  value: liveUpdate.odds,
-                  name: liveUpdate.name.value,
-                  // resultName: liveUpdate.name.value,
-                };
-              }
-            });
-          });
-          return game; // Trả lại trận đấu đã được cập nhật
-        });
-
-        setBasketballData({ ...basketballData, Games: updatedGames });
-      };
-      ws.current.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-      ws.current.onclose = () => {
-        console.log("WebSocket connection closed");
-      };
-    }
+  useEffect(() => {
+    ws.current = new WebSocket(wsUrl);
+    ws.current.onopen = () => {
+      console.log("WebSocket connection established");
+      ws.current.send("something");
+    };
+    ws.current.onmessage = (event) => {
+      const jsonData = JSON.parse(event.data);
+      setData(jsonData?.payload?.game);
+    };
+    ws.current.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+    ws.current.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
   }, []);
 
-  // useEffect(() => {
-  //   if (!data || !basketballData || basketballData.Games.length === 0) return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
-  //   const updatedGames = basketballData.Games.map((game) => {
-  //     ["Spread", "Totals", "Money Line"].forEach((betType) => {
-  //       game.bettingBoard[betType]?.forEach((bet, index) => {
-  //         const liveUpdate = data.results.find(
-  //           (result) => result.id === bet.id
-  //         );
-  //         if (liveUpdate) {
-  //           // Cập nhật thông tin cược với dữ liệu mới
-  //           game.bettingBoard[betType][index] = {
-  //             ...bet,
-  //             value: liveUpdate.odds,
-  //             name: liveUpdate.name.value,
-  //             // resultName: liveUpdate.name.value,
-  //           };
-  //         }
-  //       });
-  //     });
-  //     return game; // Trả lại trận đấu đã được cập nhật
-  //   });
+  useEffect(() => {
+    // if (!data || !basketballData || basketballData.Games.length === 0) return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
+    const updatedGames = basketballData?.Games.map((game) => {
+      ["Spread", "Totals", "Money Line"].forEach((betType) => {
+        game.bettingBoard[betType]?.forEach((bet, index) => {
+          const liveUpdate = data.results.find(
+            (result) => result.id === bet.id
+          );
+          console.log(liveUpdate);
+          if (liveUpdate) {
+            // Cập nhật thông tin cược với dữ liệu mới
+            game.bettingBoard[betType][index] = {
+              ...bet,
+              value: liveUpdate.odds,
+              name: liveUpdate.attr,
+              // resultName: liveUpdate.name.value,
+            };
+          }
+        });
+      });
+      return game; // Trả lại trận đấu đã được cập nhật
+    });
 
-  //   setBasketballData({ ...basketballData, Games: updatedGames });
-  // }, [data]);
+    setBasketballData({ ...basketballData, Games: updatedGames });
+    setUpdatedData(basketballData);
+  }, [data]);
 
-  console.log(data);
+  // console.log(data);
+  // console.log(updatedData);
   // console.log(basketballData);
   return (
     <div className="w-4/5 mx-auto pt-8 bg-white h-screen">
       <div className="">
         <div className="border-b-4">MBA</div>
         <div className="space-y-4">
-          {basketballData &&
-          basketballData.Games &&
-          basketballData.Games.length > 0 ? (
-            basketballData.Games.map((game, index) => (
+          {updatedData && updatedData?.Games?.length > 0 ? (
+            // {basketballData &&
+            // basketballData?.Games?.length > 0 ? (
+            // basketballData.Games.map((game, index) => (
+            updatedData.Games.map((game, index) => (
               <Card
                 key={index}
                 className="p-4 border border-gray-200 rounded shadow"
@@ -138,7 +121,9 @@ const Tennis = () => {
                         >
                           {/*spread*/}
                           {/* <p>{spread.name}</p> */}
-                          <p id={`spread-name-${spread.id}`}>{spread.name}</p>
+                          <p id={`spread-resultName-${spread.id}`}>
+                            {spread.name}
+                          </p>
                           <p id={`spread-odds-${spread.id}`}>{spread.value}</p>
                         </div>
                       ))}
@@ -153,7 +138,9 @@ const Tennis = () => {
                           data-bet-id={total.id}
                         >
                           {/* <p id={`total-name-${total.id}`}>{total.name}</p> */}
-                          <p id={`total-name-${total.id}`}>{total.name}</p>
+                          <p id={`total-resultName-${total.id}`}>
+                            {total.name}
+                          </p>
                           <p id={`total-odds-${total.id}`}>{total.value}</p>
                         </div>
                       ))}
@@ -186,4 +173,4 @@ const Tennis = () => {
   );
 };
 
-export default Tennis;
+export default NBA;

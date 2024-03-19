@@ -3,6 +3,7 @@ export const path = {
 
   KINGBET: "kingbet",
 
-  NBA: "nba ",
-  TENNIS: "tennis"
+  NBA: "nba",
+  TENNIS: "tennis",
+  TABLETENNIS: "table-tennis"
 };

@@ -20,7 +20,7 @@ const KingBet = () => {
 
       // Logic mới để tìm và thiết lập mục cụ thể
       const Spread = jsonData?.payload?.game?.results?.find(
-        (result) => result.id === -1174994997
+        (result) => result.id === -1173260784
       );
       if (Spread) {
         setSpecificSpread(Spread);
