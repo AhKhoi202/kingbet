@@ -56,7 +56,7 @@ const NBA = () => {
 
   useEffect(() => {
     // if (!data || !basketballData || basketballData.Games.length === 0) return; // Nếu không có dữ liệu ban đầu, không cần cập nhật
-    const updatedGames = basketballData?.Games.map((game) => {
+    const updatedGames = basketballData?.Games?.map((game) => {
       ["Spread", "Totals", "Money Line"].forEach((betType) => {
         game.bettingBoard[betType]?.forEach((bet, index) => {
           const liveUpdate = data.results.find(
@@ -89,7 +89,7 @@ const NBA = () => {
       <div className="">
         <div className="border-b-4">MBA</div>
         <div className="space-y-4">
-          {updatedData && updatedData?.Games?.length > 0 ? (
+          {updatedData && updatedData.Games && updatedData.Games.length > 0 ? (
             // {basketballData &&
             // basketballData?.Games?.length > 0 ? (
             // basketballData.Games.map((game, index) => (
